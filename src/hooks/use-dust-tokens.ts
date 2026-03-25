@@ -22,10 +22,12 @@ export function useDustTokens(address: `0x${string}` | undefined, chainId: numbe
 
       console.log(`[DustTokens] Wallet has ${walletTokens.length} tokens on ${chainConfig.name}`)
 
-      // Include tokens with value > 0 and under dust threshold
-      // Tokens with $0 are unroutable anyway (no liquidity = no swap)
+      // Include ALL tokens with balance, even if $0 value:
+      // - Tokens WITH value: must be under dust threshold
+      // - Tokens WITHOUT value ($0): include them too — Odos might still route them
+      //   (Zerion doesn't price every token, but they may have liquidity on-chain)
       const dustTokens = walletTokens.filter(
-        (t) => t.usdValue > 0 && t.usdValue <= chainConfig.minimumDustInUSD,
+        (t) => t.usdValue === 0 || t.usdValue <= chainConfig.minimumDustInUSD,
       )
 
       if (dustTokens.length === 0) {
@@ -33,7 +35,7 @@ export function useDustTokens(address: `0x${string}` | undefined, chainId: numbe
         return []
       }
 
-      console.log(`[DustTokens] Found ${dustTokens.length} dust tokens`)
+      console.log(`[DustTokens] Found ${dustTokens.length} dust tokens (${dustTokens.filter(t => t.usdValue === 0).length} unpriced)`)
 
       // Batch check allowances via multicall
       const spender = ODOS_V3_ROUTER as `0x${string}`
@@ -66,13 +68,15 @@ export function useDustTokens(address: `0x${string}` | undefined, chainId: numbe
           usdPrice: t.usdPrice,
           usdValue: t.usdValue,
           logoUrl: t.logoUrl,
-          // Mark ALL tokens as Odos supported — let the quote endpoint
-          // decide what it can't route. Odos supports way more tokens
-          // than their /info/tokens list shows.
           isOdosSupported: true,
           permit2Approved: allowances[i] > 0n,
         }))
-        .sort((a, b) => b.usdValue - a.usdValue)
+        // Sort: priced tokens first (by value desc), then unpriced at bottom
+        .sort((a, b) => {
+          if (a.usdValue > 0 && b.usdValue === 0) return -1
+          if (a.usdValue === 0 && b.usdValue > 0) return 1
+          return b.usdValue - a.usdValue
+        })
     },
     enabled: !!address && chainId > 0,
     staleTime: 30_000,

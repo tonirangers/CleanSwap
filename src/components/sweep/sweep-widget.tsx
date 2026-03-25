@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { useAccount, useChainId } from 'wagmi'
@@ -27,6 +27,17 @@ export function SweepWidget({ connected }: SweepWidgetProps) {
 
   const [deselected, setDeselected] = useState<Set<string>>(new Set())
   const [tokenListOpen, setTokenListOpen] = useState(true)
+
+  // Reset deselected when wallet or chain changes
+  const prevAddress = useRef(address)
+  const prevChainId = useRef(chainId)
+  useEffect(() => {
+    if (prevAddress.current !== address || prevChainId.current !== chainId) {
+      setDeselected(new Set())
+      prevAddress.current = address
+      prevChainId.current = chainId
+    }
+  }, [address, chainId])
 
   const allSweepable = dustTokens?.filter((t) => t.isOdosSupported) ?? []
   const selectedTokens = allSweepable.filter((t) => !deselected.has(t.address))
