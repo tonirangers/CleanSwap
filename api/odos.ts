@@ -1,12 +1,18 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Extract everything after /api/odos
-  const { url } = req
-  const path = url?.replace(/^\/api\/odos/, '') || ''
-  const targetUrl = `https://api.odos.xyz${path}`
+  // Path comes via query parameter from vercel.json rewrite
+  const subpath = req.query.path
+    ? '/' + (Array.isArray(req.query.path) ? req.query.path.join('/') : req.query.path)
+    : ''
 
-  // Handle CORS preflight
+  // Preserve original query params (minus our internal 'path' param)
+  const url = new URL(req.url || '/', `https://${req.headers.host}`)
+  url.searchParams.delete('path')
+  const queryString = url.searchParams.toString()
+  const targetUrl = `https://api.odos.xyz${subpath}${queryString ? '?' + queryString : ''}`
+
+  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept')
@@ -26,7 +32,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       headers,
     }
 
-    // Forward body for POST requests
     if (req.method === 'POST' && req.body) {
       fetchOptions.body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body)
     }
