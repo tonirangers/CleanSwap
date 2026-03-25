@@ -1,10 +1,19 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Extract the path after /api/zerion
+  // Extract everything after /api/zerion
   const { url } = req
   const path = url?.replace(/^\/api\/zerion/, '') || ''
   const targetUrl = `https://api.zerion.io/v1${path}`
+
+  // Handle CORS preflight
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Authorization, Accept, Content-Type')
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end()
+  }
 
   try {
     const response = await fetch(targetUrl, {
@@ -18,17 +27,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const data = await response.text()
 
-    // Set CORS headers
-    res.setHeader('Access-Control-Allow-Origin', '*')
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')
-    res.setHeader('Access-Control-Allow-Headers', 'Authorization, Accept, Content-Type')
-
-    if (req.method === 'OPTIONS') {
-      return res.status(200).end()
-    }
-
     res.status(response.status)
-    res.setHeader('Content-Type', 'application/json')
+    res.setHeader('Content-Type', response.headers.get('content-type') || 'application/json')
     return res.send(data)
   } catch (error) {
     console.error('Zerion proxy error:', error)
