@@ -12,18 +12,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const queryString = url.searchParams.toString()
   const targetUrl = `https://api.odos.xyz${subpath}${queryString ? '?' + queryString : ''}`
 
-  // Debug endpoint
-  if (req.query.debug === '1') {
-    return res.status(200).json({
-      reqUrl: req.url,
-      queryPath: req.query.path,
-      subpath,
-      targetUrl,
-      queryString,
-      method: req.method,
-    })
-  }
-
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
