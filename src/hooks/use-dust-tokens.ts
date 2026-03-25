@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query'
 import { erc20Abi } from 'viem'
 import { usePublicClient } from 'wagmi'
 import { fetchWalletTokens } from '@/api/zerion'
-import { getOdosSupportedTokens } from '@/api/odos-v3'
 import { getChainConfig } from '@/config/chains'
 import { ODOS_V3_ROUTER } from '@/config/constants'
 import type { DustToken } from '@/types'
@@ -18,38 +17,27 @@ export function useDustTokens(address: `0x${string}` | undefined, chainId: numbe
       const chainConfig = getChainConfig(chainId)
       if (!chainConfig) return []
 
-      // Fetch wallet tokens and Odos supported tokens in parallel
-      const [walletTokens, odosSupported] = await Promise.all([
-        fetchWalletTokens(address, chainId),
-        getOdosSupportedTokens(chainId),
-      ])
+      // Fetch ALL wallet tokens from Zerion
+      const walletTokens = await fetchWalletTokens(address, chainId)
 
-      console.log(`[DustTokens] Wallet: ${walletTokens.length} tokens, Odos supported: ${odosSupported.size} tokens`)
+      console.log(`[DustTokens] Wallet has ${walletTokens.length} tokens on ${chainConfig.name}`)
 
-      // Show ALL ERC20 tokens from wallet (not just dust).
-      // Filter: must have some value > 0 AND be under the dust threshold
-      // The threshold is generous ($200-$2000 depending on chain)
+      // Include all tokens with value under dust threshold
+      // This is generous — we let Odos decide what it can/can't route
       const dustTokens = walletTokens.filter(
-        (t) => t.usdValue >= 0.001 && t.usdValue <= chainConfig.minimumDustInUSD,
+        (t) => t.usdValue > 0 && t.usdValue <= chainConfig.minimumDustInUSD,
       )
 
-      // Also include tokens with $0 value if they have a balance (might be unpriced)
-      const unpricedTokens = walletTokens.filter(
-        (t) => t.usdValue === 0 && t.balanceFormatted > 0,
-      )
-
-      const allTokens = [...dustTokens, ...unpricedTokens]
-
-      if (allTokens.length === 0) {
-        console.log('[DustTokens] No qualifying tokens found')
+      if (dustTokens.length === 0) {
+        console.log('[DustTokens] No dust tokens found')
         return []
       }
 
-      console.log(`[DustTokens] ${dustTokens.length} priced + ${unpricedTokens.length} unpriced = ${allTokens.length} total`)
+      console.log(`[DustTokens] Found ${dustTokens.length} dust tokens`)
 
       // Batch check allowances via multicall
       const spender = ODOS_V3_ROUTER as `0x${string}`
-      const approvalCalls = allTokens.map((t) => ({
+      const approvalCalls = dustTokens.map((t) => ({
         address: t.address as `0x${string}`,
         abi: erc20Abi,
         functionName: 'allowance' as const,
@@ -63,11 +51,11 @@ export function useDustTokens(address: `0x${string}` | undefined, chainId: numbe
           r.status === 'success' ? (r.result as bigint) : 0n,
         )
       } catch (err) {
-        console.warn('[DustTokens] Multicall failed, skipping allowance check:', err)
-        allowances = allTokens.map(() => 0n)
+        console.warn('[DustTokens] Multicall failed:', err)
+        allowances = dustTokens.map(() => 0n)
       }
 
-      return allTokens
+      return dustTokens
         .map((t, i) => ({
           address: t.address as `0x${string}`,
           symbol: t.symbol,
@@ -78,16 +66,13 @@ export function useDustTokens(address: `0x${string}` | undefined, chainId: numbe
           usdPrice: t.usdPrice,
           usdValue: t.usdValue,
           logoUrl: t.logoUrl,
-          isOdosSupported: odosSupported.has(t.address.toLowerCase()),
+          // Mark ALL tokens as Odos supported — let the quote endpoint
+          // decide what it can't route. Odos supports way more tokens
+          // than their /info/tokens list shows.
+          isOdosSupported: true,
           permit2Approved: allowances[i] > 0n,
         }))
-        // Sort: supported first, then by USD value desc
-        .sort((a, b) => {
-          if (a.isOdosSupported !== b.isOdosSupported) {
-            return a.isOdosSupported ? -1 : 1
-          }
-          return b.usdValue - a.usdValue
-        })
+        .sort((a, b) => b.usdValue - a.usdValue)
     },
     enabled: !!address && chainId > 0,
     staleTime: 30_000,

@@ -2,7 +2,7 @@ import { ExternalLink } from 'lucide-react'
 
 const links = [
   { href: 'https://t.me/cleanswap', label: 'Telegram' },
-  { href: 'https://x.com/cleanswap', label: 'X / Twitter' },
+  { href: 'https://x.com/Clean_Swap', label: 'X' },
   { href: 'https://github.com/tonirangers/CleanSwap', label: 'GitHub' },
 ]
 

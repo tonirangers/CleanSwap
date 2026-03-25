@@ -1,15 +1,13 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { useAccount } from 'wagmi'
 import { Toaster } from 'sonner'
 import { PageShell } from '@/components/layout/page-shell'
-import { LandingPage } from '@/pages/landing'
-import { SweepPage } from '@/pages/sweep'
+import { SweepWidget } from '@/components/sweep/sweep-widget'
 
 export function App() {
   const { isConnected } = useAccount()
 
   return (
-    <BrowserRouter>
+    <>
       <Toaster
         position="bottom-right"
         theme="dark"
@@ -23,10 +21,10 @@ export function App() {
         }}
       />
       <PageShell>
-        <Routes>
-          <Route path="/" element={isConnected ? <SweepPage /> : <LandingPage />} />
-        </Routes>
+        <div className="flex flex-1 flex-col items-center justify-center px-4 py-6">
+          <SweepWidget connected={isConnected} />
+        </div>
       </PageShell>
-    </BrowserRouter>
+    </>
   )
 }

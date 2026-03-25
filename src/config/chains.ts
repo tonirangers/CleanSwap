@@ -1,6 +1,6 @@
 import type { ChainConfig } from '@/types'
 
-export const SUPPORTED_CHAINS: readonly number[] = [56, 8453, 42161, 137, 43114, 10, 1] as const
+export const SUPPORTED_CHAINS: readonly number[] = [56, 8453, 1, 42161, 137, 43114, 10, 250, 324, 34443, 59144] as const
 
 export const chainConfigs: Record<number, ChainConfig> = {
   1: {
@@ -9,7 +9,7 @@ export const chainConfigs: Record<number, ChainConfig> = {
     symbol: 'ETH',
     network: 'eth',
     nativeTokenAddress: '0x0000000000000000000000000000000000000000',
-    minimumDustInUSD: 5000,
+    minimumDustInUSD: 100,
     referralCode: 3978021280,
     enabled: true,
     explorerUrl: 'https://etherscan.io',
@@ -20,7 +20,7 @@ export const chainConfigs: Record<number, ChainConfig> = {
     symbol: 'BNB',
     network: 'bsc',
     nativeTokenAddress: '0x0000000000000000000000000000000000000000',
-    minimumDustInUSD: 500,
+    minimumDustInUSD: 100,
     referralCode: 3978021280,
     enabled: true,
     explorerUrl: 'https://bscscan.com',
@@ -31,7 +31,7 @@ export const chainConfigs: Record<number, ChainConfig> = {
     symbol: 'ETH',
     network: 'arbitrum-one',
     nativeTokenAddress: '0x0000000000000000000000000000000000000000',
-    minimumDustInUSD: 500,
+    minimumDustInUSD: 100,
     referralCode: 3978021280,
     enabled: true,
     explorerUrl: 'https://arbiscan.io',
@@ -42,7 +42,7 @@ export const chainConfigs: Record<number, ChainConfig> = {
     symbol: 'POL',
     network: 'matic',
     nativeTokenAddress: '0x0000000000000000000000000000000000000000',
-    minimumDustInUSD: 500,
+    minimumDustInUSD: 100,
     referralCode: 3978021280,
     enabled: true,
     explorerUrl: 'https://polygonscan.com',
@@ -53,7 +53,7 @@ export const chainConfigs: Record<number, ChainConfig> = {
     symbol: 'AVAX',
     network: 'avalanche',
     nativeTokenAddress: '0x0000000000000000000000000000000000000000',
-    minimumDustInUSD: 500,
+    minimumDustInUSD: 100,
     referralCode: 3978021280,
     enabled: true,
     explorerUrl: 'https://snowtrace.io',
@@ -64,7 +64,7 @@ export const chainConfigs: Record<number, ChainConfig> = {
     symbol: 'ETH',
     network: 'base',
     nativeTokenAddress: '0x0000000000000000000000000000000000000000',
-    minimumDustInUSD: 500,
+    minimumDustInUSD: 100,
     referralCode: 3978021280,
     enabled: true,
     explorerUrl: 'https://basescan.org',
@@ -75,7 +75,7 @@ export const chainConfigs: Record<number, ChainConfig> = {
     symbol: 'ETH',
     network: 'optimism',
     nativeTokenAddress: '0x0000000000000000000000000000000000000000',
-    minimumDustInUSD: 500,
+    minimumDustInUSD: 100,
     referralCode: 3978021280,
     enabled: true,
     explorerUrl: 'https://optimistic.etherscan.io',
@@ -86,9 +86,9 @@ export const chainConfigs: Record<number, ChainConfig> = {
     symbol: 'FTM',
     network: 'fantom',
     nativeTokenAddress: '0x0000000000000000000000000000000000000000',
-    minimumDustInUSD: 500,
+    minimumDustInUSD: 100,
     referralCode: 3978021280,
-    enabled: false,
+    enabled: true,
     explorerUrl: 'https://ftmscan.com',
   },
   324: {
@@ -97,9 +97,9 @@ export const chainConfigs: Record<number, ChainConfig> = {
     symbol: 'ETH',
     network: 'zksync',
     nativeTokenAddress: '0x0000000000000000000000000000000000000000',
-    minimumDustInUSD: 500,
+    minimumDustInUSD: 100,
     referralCode: 3978021280,
-    enabled: false,
+    enabled: true,
     explorerUrl: 'https://explorer.zksync.io',
   },
   34443: {
@@ -108,9 +108,9 @@ export const chainConfigs: Record<number, ChainConfig> = {
     symbol: 'ETH',
     network: 'mode',
     nativeTokenAddress: '0x0000000000000000000000000000000000000000',
-    minimumDustInUSD: 500,
+    minimumDustInUSD: 100,
     referralCode: 3978021280,
-    enabled: false,
+    enabled: true,
     explorerUrl: 'https://explorer.mode.network',
   },
   59144: {
@@ -119,9 +119,9 @@ export const chainConfigs: Record<number, ChainConfig> = {
     symbol: 'ETH',
     network: 'linea',
     nativeTokenAddress: '0x0000000000000000000000000000000000000000',
-    minimumDustInUSD: 500,
+    minimumDustInUSD: 100,
     referralCode: 3978021280,
-    enabled: false,
+    enabled: true,
     explorerUrl: 'https://lineascan.build',
   },
 }
