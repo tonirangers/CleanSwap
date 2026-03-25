@@ -16,6 +16,7 @@ export function SweepButton({ tokens, batches, disabled, onSuccess }: SweepButto
   const isProcessing = status === 'approving' || status === 'signing' || status === 'sweeping'
   const isDone = status === 'done'
   const isError = status === 'error'
+  const isReady = !disabled && !isProcessing && !isDone && !isError && tokens.length > 0
 
   function handleClick() {
     if (isDone) {
@@ -45,7 +46,9 @@ export function SweepButton({ tokens, batches, disabled, onSuccess }: SweepButto
       case 'error':
         return 'Retry Clean All'
       default:
-        return tokens.length === 0 ? 'No dust to sweep' : `Clean All — ${tokens.length} token${tokens.length !== 1 ? 's' : ''}`
+        return tokens.length === 0
+          ? 'No dust to sweep'
+          : `Clean All — ${tokens.length} token${tokens.length !== 1 ? 's' : ''}`
     }
   })()
 
@@ -62,14 +65,14 @@ export function SweepButton({ tokens, batches, disabled, onSuccess }: SweepButto
       whileTap={!disabled && !isProcessing ? { scale: 0.985 } : {}}
       onClick={handleClick}
       disabled={disabled || isProcessing}
-      className={`relative flex w-full items-center justify-center gap-2.5 rounded-2xl px-6 py-4 text-lg font-bold transition-all duration-300 ${
+      className={`relative flex w-full items-center justify-center gap-2.5 rounded-2xl px-6 py-[18px] text-lg font-bold transition-all duration-300 ${
         disabled || isProcessing
-          ? 'cursor-not-allowed bg-white/[0.04] text-text-dim border border-white/[0.04]'
+          ? 'cursor-not-allowed bg-white/[0.03] text-text-dim'
           : isDone
-            ? 'bg-success/15 text-success border border-success/20 glow-success'
+            ? 'bg-success/15 text-success glow-success'
             : isError
-              ? 'bg-error/15 text-error border border-error/20'
-              : 'btn-primary glow-violet'
+              ? 'bg-error/15 text-error'
+              : `btn-primary ${isReady ? 'btn-primary-ready' : 'glow-violet'}`
       }`}
     >
       {icon}

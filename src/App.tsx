@@ -13,15 +13,15 @@ export function App() {
         theme="dark"
         toastOptions={{
           style: {
-            background: 'rgba(255, 255, 255, 0.05)',
+            background: 'rgba(12, 10, 24, 0.85)',
             backdropFilter: 'blur(16px)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
             color: '#f4f4f5',
           },
         }}
       />
       <PageShell>
-        <div className="flex flex-1 flex-col items-center justify-center px-4 py-6">
+        <div className="flex flex-1 flex-col items-center justify-start px-4 pt-[10vh] sm:pt-[12vh] pb-8">
           <SweepWidget connected={isConnected} />
         </div>
       </PageShell>
