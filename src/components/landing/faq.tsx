@@ -39,22 +39,35 @@ export function Faq() {
   const [openIndex, setOpenIndex] = useState<number | null>(null)
 
   return (
-    <section className="px-4 py-20">
+    <section className="px-4 py-20 md:py-28">
       <div className="mx-auto max-w-2xl">
-        <h2 className="mb-10 text-center text-2xl font-bold tracking-tight md:text-3xl">
-          FAQ
-        </h2>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="mb-12 text-center"
+        >
+          <h2 className="text-3xl font-bold tracking-tight md:text-4xl">FAQ</h2>
+          <p className="mt-3 text-text-muted">Common questions, quick answers.</p>
+        </motion.div>
 
         <div className="space-y-2">
           {faqs.map((faq, i) => (
-            <div key={i} className="glass-card overflow-hidden">
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 15 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.05, duration: 0.4 }}
+              className="glass-card overflow-hidden"
+            >
               <button
                 onClick={() => setOpenIndex(openIndex === i ? null : i)}
-                className="flex w-full items-center justify-between p-4 text-left transition-colors hover:bg-white/5"
+                className="flex w-full items-center justify-between p-5 text-left transition-colors hover:bg-white/[0.03]"
               >
-                <span className="pr-4 text-sm font-medium">{faq.question}</span>
+                <span className="pr-4 text-sm font-medium leading-relaxed">{faq.question}</span>
                 <ChevronDown
-                  className={`h-4 w-4 shrink-0 text-text-muted transition-transform ${
+                  className={`h-4 w-4 shrink-0 text-text-muted transition-transform duration-300 ${
                     openIndex === i ? 'rotate-180' : ''
                   }`}
                 />
@@ -65,15 +78,15 @@ export function Faq() {
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.2 }}
+                    transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
                   >
-                    <p className="px-4 pb-4 text-sm leading-relaxed text-text-muted">
+                    <p className="px-5 pb-5 text-sm leading-relaxed text-text-muted">
                       {faq.answer}
                     </p>
                   </motion.div>
                 )}
               </AnimatePresence>
-            </div>
+            </motion.div>
           ))}
         </div>
       </div>

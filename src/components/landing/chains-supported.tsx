@@ -5,14 +5,20 @@ export function ChainsSupported() {
   const chains = Object.values(chainConfigs)
 
   return (
-    <section className="px-4 py-20">
+    <section className="px-4 py-20 md:py-28">
       <div className="mx-auto max-w-3xl text-center">
-        <h2 className="mb-4 text-2xl font-bold tracking-tight md:text-3xl">
-          Multi-chain support
-        </h2>
-        <p className="mb-10 text-text-muted">
-          11 chains configured. More going live soon.
-        </p>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+        >
+          <h2 className="mb-3 text-3xl font-bold tracking-tight md:text-4xl">
+            Multi-chain support
+          </h2>
+          <p className="mb-12 text-text-muted">
+            11 chains configured. More going live soon.
+          </p>
+        </motion.div>
 
         <div className="flex flex-wrap items-center justify-center gap-3">
           {chains.map((chain, i) => {
@@ -23,19 +29,24 @@ export function ChainsSupported() {
                 initial={{ opacity: 0, scale: 0.9 }}
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
-                transition={{ delay: i * 0.05 }}
-                className={`glass inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm ${
-                  isLive ? 'border-violet-accent/30' : 'opacity-50'
+                transition={{ delay: i * 0.04, duration: 0.4 }}
+                whileHover={isLive ? { scale: 1.05, transition: { duration: 0.15 } } : {}}
+                className={`glass glass-hover inline-flex items-center gap-2.5 rounded-full px-5 py-2.5 text-sm font-medium ${
+                  isLive
+                    ? 'border-violet-accent/20 text-text-primary'
+                    : 'opacity-40 text-text-muted'
                 }`}
               >
                 <span
                   className={`h-2 w-2 rounded-full ${
-                    isLive ? 'bg-success' : 'bg-text-dim'
+                    isLive ? 'bg-success pulse-ring' : 'bg-text-dim'
                   }`}
                 />
                 {chain.name}
                 {isLive && (
-                  <span className="text-xs text-violet-light">Live</span>
+                  <span className="rounded-full bg-violet-accent/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-violet-light">
+                    Live
+                  </span>
                 )}
               </motion.div>
             )

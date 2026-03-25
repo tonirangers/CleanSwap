@@ -6,41 +6,48 @@ interface BatchProgressProps {
 }
 
 export function BatchProgress({ batches }: BatchProgressProps) {
-  // Only show when there are multiple batches and at least one is processing
   if (batches.length <= 1) return null
 
-  const hasActivity = batches.some(
-    (b) => b.status !== 'pending',
-  )
+  const hasActivity = batches.some((b) => b.status !== 'pending')
   if (!hasActivity) return null
 
   return (
-    <div className="glass-card p-4">
-      <p className="mb-3 text-sm text-text-muted">Batch progress</p>
+    <motion.div
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: 'auto' }}
+      className="glass-card p-5"
+    >
+      <p className="mb-3 text-xs font-medium uppercase tracking-wider text-text-muted">
+        Batch progress
+      </p>
       <div className="flex gap-2">
+        {batches.map((batch) => {
+          const isActive = ['quoting', 'signing', 'executing'].includes(batch.status)
+          return (
+            <motion.div
+              key={batch.id}
+              className={`h-2 flex-1 rounded-full transition-colors duration-500 ${
+                batch.status === 'done'
+                  ? 'bg-success'
+                  : batch.status === 'error'
+                    ? 'bg-error'
+                    : batch.status === 'pending'
+                      ? 'bg-white/[0.06]'
+                      : 'bg-violet-accent'
+              }`}
+              animate={isActive ? { opacity: [1, 0.4, 1] } : {}}
+              transition={isActive ? { repeat: Infinity, duration: 1.2, ease: 'easeInOut' } : {}}
+            />
+          )
+        })}
+      </div>
+      <div className="mt-2 flex justify-between text-[10px] text-text-dim">
         {batches.map((batch) => (
-          <motion.div
-            key={batch.id}
-            className={`h-2 flex-1 rounded-full ${
-              batch.status === 'done'
-                ? 'bg-success'
-                : batch.status === 'error'
-                  ? 'bg-error'
-                  : batch.status === 'pending'
-                    ? 'bg-white/10'
-                    : 'bg-violet-accent'
-            }`}
-            animate={
-              batch.status === 'quoting' ||
-              batch.status === 'signing' ||
-              batch.status === 'executing'
-                ? { opacity: [1, 0.5, 1] }
-                : {}
-            }
-            transition={{ repeat: Infinity, duration: 1 }}
-          />
+          <span key={batch.id}>
+            {batch.status === 'done' ? 'Done' : batch.status === 'error' ? 'Failed' : batch.status === 'pending' ? 'Pending' : 'Processing...'}
+          </span>
         ))}
       </div>
-    </div>
+    </motion.div>
   )
 }

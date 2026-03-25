@@ -28,6 +28,7 @@ interface ZerionPosition {
 
 interface ZerionResponse {
   data: ZerionPosition[]
+  links?: { next?: string }
 }
 
 export interface WalletToken {
@@ -66,11 +67,12 @@ export async function fetchWalletTokens(
 
   const apiKey = import.meta.env.VITE_ZERION_API_KEY
 
-  // If no Zerion API key, fall back to Odos pricing
   if (!apiKey) {
-    return fetchWalletTokensFallback(address, chainId)
+    console.warn('No Zerion API key configured. Set VITE_ZERION_API_KEY in .env')
+    return []
   }
 
+  // Fetch ALL wallet positions for this chain (no value filter — we want everything)
   const url = `${ZERION_BASE_URL}/wallets/${address}/positions/?filter[chain_ids]=${zerionChain}&currency=usd&filter[position_types]=wallet&sort=value`
 
   const response = await fetch(url, {
@@ -81,10 +83,19 @@ export async function fetchWalletTokens(
   })
 
   if (!response.ok) {
+    const errorText = await response.text().catch(() => '')
+    console.error(`Zerion API error (${response.status}):`, errorText)
     throw new Error(`Zerion API error (${response.status})`)
   }
 
   const data: ZerionResponse = await response.json()
+
+  if (!data.data || data.data.length === 0) {
+    console.log('[Zerion] No positions found for', address, 'on', zerionChain)
+    return []
+  }
+
+  console.log(`[Zerion] Found ${data.data.length} positions on ${zerionChain}`)
 
   return data.data
     .filter((pos) => {
@@ -110,15 +121,4 @@ export async function fetchWalletTokens(
         logoUrl: pos.attributes.fungible_info.icon?.url,
       }
     })
-}
-
-// Fallback: use Odos pricing API directly when Zerion key is not available
-async function fetchWalletTokensFallback(
-  _address: string,
-  _chainId: number,
-): Promise<WalletToken[]> {
-  // TODO: Implement fallback using on-chain multicall + Odos pricing
-  // For now, return empty — Zerion API key required
-  console.warn('No Zerion API key configured. Set VITE_ZERION_API_KEY in .env')
-  return []
 }
