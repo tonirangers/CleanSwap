@@ -22,10 +22,12 @@ export function useDustTokens(address: `0x${string}` | undefined, chainId: numbe
 
       console.log(`[DustTokens] Wallet has ${walletTokens.length} tokens on ${chainConfig.name}`)
 
-      // Include all tokens with value under dust threshold
-      // This is generous — we let Odos decide what it can/can't route
+      // Include ALL tokens with balance:
+      // - Tokens with value under dust threshold (real dust)
+      // - Tokens with zero/unknown price but have a balance (unpriced dust)
+      // We let Odos decide what it can/can't route
       const dustTokens = walletTokens.filter(
-        (t) => t.usdValue > 0 && t.usdValue <= chainConfig.minimumDustInUSD,
+        (t) => t.usdValue <= chainConfig.minimumDustInUSD,
       )
 
       if (dustTokens.length === 0) {
