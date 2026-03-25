@@ -14,6 +14,13 @@ export interface OdosQuoteRequest {
   signal?: AbortSignal
 }
 
+export interface Permit2Message {
+  domain: Record<string, unknown>
+  types: Record<string, unknown[]>
+  primaryType: string
+  message: Record<string, unknown>
+}
+
 export interface OdosQuoteResponse {
   pathId: string
   outAmounts: string[]
@@ -21,6 +28,9 @@ export interface OdosQuoteResponse {
   gasEstimate: number
   gasEstimateValue: number
   pathVizImage?: string
+  // Permit2 fields — populated when user has approved tokens to Permit2
+  permit2Message?: Permit2Message | null
+  permit2Hash?: string | null
 }
 
 export interface OdosAssembleResponse {
@@ -71,15 +81,23 @@ export async function assembleOdosTransaction(params: {
   userAddr: string
   pathId: string
   simulate?: boolean
+  permit2Signature?: string
 }): Promise<OdosAssembleResponse> {
+  const body: Record<string, unknown> = {
+    userAddr: params.userAddr,
+    pathId: params.pathId,
+    simulate: params.simulate ?? true,
+  }
+
+  // Include Permit2 signature if available — Odos will use swapMultiPermit2
+  if (params.permit2Signature) {
+    body.permit2Signature = params.permit2Signature
+  }
+
   const response = await fetch(odosUrl('/sor/assemble'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      userAddr: params.userAddr,
-      pathId: params.pathId,
-      simulate: params.simulate ?? true,
-    }),
+    body: JSON.stringify(body),
   })
 
   if (!response.ok) {

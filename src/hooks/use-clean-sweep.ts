@@ -3,7 +3,7 @@ import { useAccount, useChainId, useWalletClient, useSendTransaction } from 'wag
 import { erc20Abi, maxUint256, type Hex } from 'viem'
 import { toast } from 'sonner'
 import { getOdosQuote, assembleOdosTransaction } from '@/api/odos-v3'
-import { ODOS_V3_ROUTER, DEFAULT_SLIPPAGE } from '@/config/constants'
+import { PERMIT2_ADDRESS, DEFAULT_SLIPPAGE } from '@/config/constants'
 import { getChainConfig } from '@/config/chains'
 import type { SweepBatch, SweepStatus } from '@/types'
 
@@ -40,7 +40,11 @@ export function useCleanSweep() {
       setTotalBatches(batches.length)
 
       try {
-        // Step 1: Approve unapproved tokens
+        // ──────────────────────────────────────────────
+        // Step 1: Approve unapproved tokens to PERMIT2
+        // Users approve Permit2 once per token — then every future
+        // swap only needs a gasless EIP-712 signature
+        // ──────────────────────────────────────────────
         const tokensNeedingApproval = batches
           .flatMap((b) => b.tokens)
           .filter((t) => !t.permit2Approved)
@@ -50,12 +54,12 @@ export function useCleanSweep() {
 
           for (const token of tokensNeedingApproval) {
             try {
-              toast.loading(`Approving ${token.symbol}...`, { id: `approve-${token.address}` })
+              toast.loading(`Approving ${token.symbol} for Permit2...`, { id: `approve-${token.address}` })
               await walletClient.writeContract({
                 address: token.address,
                 abi: erc20Abi,
                 functionName: 'approve',
-                args: [ODOS_V3_ROUTER as `0x${string}`, maxUint256],
+                args: [PERMIT2_ADDRESS as `0x${string}`, maxUint256],
               })
               toast.success(`Approved ${token.symbol}`, { id: `approve-${token.address}` })
             } catch (err) {
@@ -71,7 +75,9 @@ export function useCleanSweep() {
           }
         }
 
+        // ──────────────────────────────────────────────
         // Step 2: Execute each batch
+        // ──────────────────────────────────────────────
         setStatus('sweeping')
 
         for (let i = 0; i < batches.length; i++) {
@@ -81,12 +87,12 @@ export function useCleanSweep() {
           const toastId = `sweep-batch-${i}`
           toast.loading(
             batches.length > 1
-              ? `Sweeping batch ${i + 1}/${batches.length}...`
-              : 'Sweeping your dust...',
+              ? `Getting quote for batch ${i + 1}/${batches.length}...`
+              : 'Getting quote...',
             { id: toastId },
           )
 
-          // Get quote
+          // Get quote — Odos returns permit2Message when tokens are approved to Permit2
           const inputTokens = batch.tokens.map((t) => ({
             tokenAddress: t.address,
             amount: t.balance.toString(),
@@ -106,13 +112,55 @@ export function useCleanSweep() {
             throw err
           }
 
-          // Assemble tx
+          // ──────────────────────────────────────────
+          // Step 2b: Sign Permit2 message (gasless!)
+          // Odos populates permit2Message when user has approved
+          // tokens to Permit2. We sign it off-chain — no gas cost.
+          // ──────────────────────────────────────────
+          let permit2Signature: string | undefined
+
+          if (quote.permit2Message) {
+            setStatus('signing')
+            toast.loading('Sign Permit2 in wallet...', { id: toastId })
+
+            try {
+              const msg = quote.permit2Message
+              permit2Signature = await walletClient.signTypedData({
+                domain: msg.domain as Record<string, unknown>,
+                types: msg.types as Record<string, { name: string; type: string }[]>,
+                primaryType: msg.primaryType,
+                message: msg.message as Record<string, unknown>,
+              })
+            } catch (err) {
+              toast.dismiss(toastId)
+              if (isUserRejection(err)) {
+                toast.error('Permit2 signature cancelled')
+                setStatus('idle')
+                return
+              }
+              // Permit2 signing failed — fall back to standard flow without signature
+              console.warn('[Sweep] Permit2 signing failed, using standard flow:', err)
+              permit2Signature = undefined
+            }
+          }
+
+          setStatus('sweeping')
+          toast.loading(
+            batches.length > 1
+              ? `Assembling batch ${i + 1}/${batches.length}...`
+              : 'Assembling transaction...',
+            { id: toastId },
+          )
+
+          // Assemble tx — pass permit2Signature if we signed it
+          // Odos assembles swapMultiPermit2 when signature is provided
           let assembled
           try {
             assembled = await assembleOdosTransaction({
               userAddr: address,
               pathId: quote.pathId,
               simulate: true,
+              permit2Signature,
             })
           } catch (err) {
             toast.error('Failed to assemble transaction', { id: toastId })
@@ -127,6 +175,13 @@ export function useCleanSweep() {
           }
 
           // Send transaction
+          toast.loading(
+            batches.length > 1
+              ? `Confirm sweep ${i + 1}/${batches.length} in wallet...`
+              : 'Confirm sweep in wallet...',
+            { id: toastId },
+          )
+
           try {
             await sendTransactionAsync({
               to: assembled.transaction.to as `0x${string}`,

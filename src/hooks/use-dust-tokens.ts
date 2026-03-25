@@ -3,7 +3,7 @@ import { erc20Abi } from 'viem'
 import { usePublicClient } from 'wagmi'
 import { fetchWalletTokens } from '@/api/zerion'
 import { getChainConfig } from '@/config/chains'
-import { ODOS_V3_ROUTER } from '@/config/constants'
+import { PERMIT2_ADDRESS } from '@/config/constants'
 import type { DustToken } from '@/types'
 
 export function useDustTokens(address: `0x${string}` | undefined, chainId: number) {
@@ -38,7 +38,8 @@ export function useDustTokens(address: `0x${string}` | undefined, chainId: numbe
       console.log(`[DustTokens] Found ${dustTokens.length} dust tokens (${dustTokens.filter(t => t.usdValue === 0).length} unpriced)`)
 
       // Batch check allowances via multicall
-      const spender = ODOS_V3_ROUTER as `0x${string}`
+      // Check allowances against Permit2 contract (not the router)
+      const spender = PERMIT2_ADDRESS as `0x${string}`
       const approvalCalls = dustTokens.map((t) => ({
         address: t.address as `0x${string}`,
         abi: erc20Abi,
