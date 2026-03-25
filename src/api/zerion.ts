@@ -1,5 +1,3 @@
-import { ZERION_BASE_URL } from '@/config/constants'
-
 interface ZerionPosition {
   id: string
   type: string
@@ -43,7 +41,6 @@ export interface WalletToken {
   logoUrl?: string
 }
 
-// Chain ID to Zerion chain name mapping
 const chainIdToZerion: Record<number, string> = {
   1: 'ethereum',
   56: 'binance-smart-chain',
@@ -56,6 +53,11 @@ const chainIdToZerion: Record<number, string> = {
   324: 'zksync-era',
   34443: 'mode',
   59144: 'linea',
+}
+
+// Always use proxy path — Vite dev server and Vercel rewrites both handle it
+function zerionUrl(path: string): string {
+  return `/api/zerion${path}`
 }
 
 export async function fetchWalletTokens(
@@ -72,8 +74,10 @@ export async function fetchWalletTokens(
     return []
   }
 
-  // Fetch ALL wallet positions for this chain (no value filter — we want everything)
-  const url = `${ZERION_BASE_URL}/wallets/${address}/positions/?filter[chain_ids]=${zerionChain}&currency=usd&filter[position_types]=wallet&sort=value`
+  const urlPath = `/wallets/${address}/positions/?filter[chain_ids]=${zerionChain}&currency=usd&filter[position_types]=wallet&sort=value`
+  const url = zerionUrl(urlPath)
+
+  console.log(`[Zerion] Fetching tokens for ${address} on ${zerionChain}`)
 
   const response = await fetch(url, {
     headers: {
@@ -85,7 +89,7 @@ export async function fetchWalletTokens(
   if (!response.ok) {
     const errorText = await response.text().catch(() => '')
     console.error(`Zerion API error (${response.status}):`, errorText)
-    throw new Error(`Zerion API error (${response.status})`)
+    throw new Error(`Token scan failed (${response.status})`)
   }
 
   const data: ZerionResponse = await response.json()
@@ -99,7 +103,6 @@ export async function fetchWalletTokens(
 
   return data.data
     .filter((pos) => {
-      // Only fungible tokens with a contract address (skip native token)
       const impl = pos.attributes.fungible_info.implementations.find(
         (i) => i.chain_id === zerionChain,
       )

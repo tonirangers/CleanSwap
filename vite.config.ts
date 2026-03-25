@@ -10,4 +10,18 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  server: {
+    proxy: {
+      '/api/zerion': {
+        target: 'https://api.zerion.io/v1',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/zerion/, ''),
+      },
+      '/api/odos': {
+        target: 'https://api.odos.xyz',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/odos/, ''),
+      },
+    },
+  },
 })

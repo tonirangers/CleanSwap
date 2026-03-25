@@ -1,5 +1,15 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "framework": "vite"
+  "framework": "vite",
+  "rewrites": [
+    {
+      "source": "/api/zerion/:path*",
+      "destination": "https://api.zerion.io/v1/:path*"
+    },
+    {
+      "source": "/api/odos/:path*",
+      "destination": "https://api.odos.xyz/:path*"
+    }
+  ]
 }

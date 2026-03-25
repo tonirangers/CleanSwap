@@ -1,4 +1,9 @@
-import { ODOS_BASE_URL, NATIVE_TOKEN_ADDRESS, REFERRAL_CODE } from '@/config/constants'
+import { NATIVE_TOKEN_ADDRESS, REFERRAL_CODE } from '@/config/constants'
+
+// Always use proxy — Vite dev server and Vercel rewrites handle routing
+function odosUrl(path: string): string {
+  return `/api/odos${path}`
+}
 
 export interface OdosQuoteRequest {
   chainId: number
@@ -37,7 +42,7 @@ export interface OdosAssembleResponse {
 }
 
 export async function getOdosQuote(params: OdosQuoteRequest): Promise<OdosQuoteResponse> {
-  const response = await fetch(`${ODOS_BASE_URL}/sor/quote/v2`, {
+  const response = await fetch(odosUrl('/sor/quote/v2'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -67,7 +72,7 @@ export async function assembleOdosTransaction(params: {
   pathId: string
   simulate?: boolean
 }): Promise<OdosAssembleResponse> {
-  const response = await fetch(`${ODOS_BASE_URL}/sor/assemble`, {
+  const response = await fetch(odosUrl('/sor/assemble'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -86,13 +91,12 @@ export async function assembleOdosTransaction(params: {
 }
 
 export async function getOdosSupportedTokens(chainId: number): Promise<Set<string>> {
-  const response = await fetch(`${ODOS_BASE_URL}/info/tokens/${chainId}`)
+  const response = await fetch(odosUrl(`/info/tokens/${chainId}`))
   if (!response.ok) return new Set()
 
   const data = await response.json()
   const tokens = new Set<string>()
 
-  // Odos returns { tokenMap: { "0xaddress": { ... } } }
   if (data.tokenMap) {
     for (const addr of Object.keys(data.tokenMap)) {
       tokens.add(addr.toLowerCase())
@@ -103,7 +107,7 @@ export async function getOdosSupportedTokens(chainId: number): Promise<Set<strin
 }
 
 export async function getOdosTokenPrice(chainId: number, tokenAddress: string): Promise<number | null> {
-  const response = await fetch(`${ODOS_BASE_URL}/pricing/token/${chainId}/${tokenAddress}`)
+  const response = await fetch(odosUrl(`/pricing/token/${chainId}/${tokenAddress}`))
   if (!response.ok) return null
 
   const data = await response.json()
