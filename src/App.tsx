@@ -21,7 +21,7 @@ export function App() {
         }}
       />
       <PageShell>
-        <div className="flex flex-1 flex-col items-center justify-start px-4 pt-[10vh] sm:pt-[12vh] pb-8">
+        <div className="flex flex-1 flex-col items-center justify-start px-4 pt-[6vh] sm:pt-[8vh] pb-8">
           <SweepWidget connected={isConnected} />
         </div>
       </PageShell>

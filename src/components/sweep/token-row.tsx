@@ -21,16 +21,16 @@ export function TokenRow({ token, selected, onToggle, dimmed }: TokenRowProps) {
       {/* Checkbox */}
       <motion.div
         whileTap={{ scale: 0.8 }}
-        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-lg border transition-all duration-150 ${
+        className={`flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-lg border-2 transition-all duration-150 ${
           selected
             ? 'border-violet-accent bg-violet-accent'
-            : 'border-white/12 bg-white/[0.02]'
+            : 'border-white/15 bg-white/[0.02]'
         }`}
       >
-        {selected && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
+        {selected && <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />}
       </motion.div>
 
-      {/* Token icon — 40px */}
+      {/* Token icon — 44px */}
       <div className="token-icon">
         {token.logoUrl ? (
           <img
@@ -42,12 +42,12 @@ export function TokenRow({ token, selected, onToggle, dimmed }: TokenRowProps) {
               img.style.display = 'none'
               if (img.parentElement) {
                 img.parentElement.innerHTML =
-                  `<span class="text-[10px] font-bold text-violet-light/60">${token.symbol.slice(0, 3)}</span>`
+                  `<span class="text-xs font-bold text-violet-light/60">${token.symbol.slice(0, 3)}</span>`
               }
             }}
           />
         ) : (
-          <span className="text-[10px] font-bold text-violet-light/60">
+          <span className="text-xs font-bold text-violet-light/60">
             {token.symbol.slice(0, 3)}
           </span>
         )}
@@ -55,15 +55,15 @@ export function TokenRow({ token, selected, onToggle, dimmed }: TokenRowProps) {
 
       {/* Token info */}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold truncate">{token.symbol}</p>
-        <p className="text-xs text-text-muted truncate">
-          {formatNumber(Number(token.balanceFormatted))}
+        <p className="text-[15px] font-semibold truncate leading-tight">{token.symbol}</p>
+        <p className="text-xs text-text-muted truncate mt-0.5">
+          {formatNumber(Number(token.balanceFormatted))} {token.name !== token.symbol ? token.name : ''}
         </p>
       </div>
 
       {/* USD Value */}
       <div className="text-right shrink-0">
-        <p className="text-sm font-semibold tabular-nums">
+        <p className="text-[15px] font-semibold tabular-nums">
           {token.usdValue > 0 ? formatUsd(token.usdValue) : '~'}
         </p>
       </div>
