@@ -22,6 +22,7 @@ export interface DustToken {
   logoUrl?: string
   isOdosSupported: boolean
   permit2Approved: boolean
+  routerApproved: boolean
 }
 
 export interface SweepQuote {

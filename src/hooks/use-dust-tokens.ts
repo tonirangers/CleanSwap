@@ -3,7 +3,7 @@ import { erc20Abi } from 'viem'
 import { usePublicClient } from 'wagmi'
 import { fetchWalletTokens } from '@/api/zerion'
 import { getChainConfig } from '@/config/chains'
-import { PERMIT2_ADDRESS } from '@/config/constants'
+import { PERMIT2_ADDRESS, ODOS_V3_ROUTER } from '@/config/constants'
 import type { DustToken } from '@/types'
 
 export function useDustTokens(address: `0x${string}` | undefined, chainId: number) {
@@ -22,10 +22,7 @@ export function useDustTokens(address: `0x${string}` | undefined, chainId: numbe
 
       console.log(`[DustTokens] Wallet has ${walletTokens.length} tokens on ${chainConfig.name}`)
 
-      // Include ALL tokens with balance, even if $0 value:
-      // - Tokens WITH value: must be under dust threshold
-      // - Tokens WITHOUT value ($0): include them too — Odos might still route them
-      //   (Zerion doesn't price every token, but they may have liquidity on-chain)
+      // Include ALL tokens with balance, even if $0 value
       const dustTokens = walletTokens.filter(
         (t) => t.usdValue === 0 || t.usdValue <= chainConfig.minimumDustInUSD,
       )
@@ -37,25 +34,41 @@ export function useDustTokens(address: `0x${string}` | undefined, chainId: numbe
 
       console.log(`[DustTokens] Found ${dustTokens.length} dust tokens (${dustTokens.filter(t => t.usdValue === 0).length} unpriced)`)
 
-      // Batch check allowances via multicall
-      // Check allowances against Permit2 contract (not the router)
-      const spender = PERMIT2_ADDRESS as `0x${string}`
-      const approvalCalls = dustTokens.map((t) => ({
+      // Batch check allowances against both Permit2 AND Odos Router
+      const permit2Spender = PERMIT2_ADDRESS as `0x${string}`
+      const routerSpender = ODOS_V3_ROUTER as `0x${string}`
+
+      const permit2Calls = dustTokens.map((t) => ({
         address: t.address as `0x${string}`,
         abi: erc20Abi,
         functionName: 'allowance' as const,
-        args: [address, spender] as const,
+        args: [address, permit2Spender] as const,
       }))
 
-      let allowances: bigint[] = []
+      const routerCalls = dustTokens.map((t) => ({
+        address: t.address as `0x${string}`,
+        abi: erc20Abi,
+        functionName: 'allowance' as const,
+        args: [address, routerSpender] as const,
+      }))
+
+      let permit2Allowances: bigint[] = []
+      let routerAllowances: bigint[] = []
       try {
-        const results = await publicClient.multicall({ contracts: approvalCalls })
-        allowances = results.map((r) =>
+        const [permit2Results, routerResults] = await Promise.all([
+          publicClient.multicall({ contracts: permit2Calls }),
+          publicClient.multicall({ contracts: routerCalls }),
+        ])
+        permit2Allowances = permit2Results.map((r) =>
+          r.status === 'success' ? (r.result as bigint) : 0n,
+        )
+        routerAllowances = routerResults.map((r) =>
           r.status === 'success' ? (r.result as bigint) : 0n,
         )
       } catch (err) {
         console.warn('[DustTokens] Multicall failed:', err)
-        allowances = dustTokens.map(() => 0n)
+        permit2Allowances = dustTokens.map(() => 0n)
+        routerAllowances = dustTokens.map(() => 0n)
       }
 
       return dustTokens
@@ -70,7 +83,8 @@ export function useDustTokens(address: `0x${string}` | undefined, chainId: numbe
           usdValue: t.usdValue,
           logoUrl: t.logoUrl,
           isOdosSupported: true,
-          permit2Approved: allowances[i] > 0n,
+          permit2Approved: permit2Allowances[i] > 0n,
+          routerApproved: routerAllowances[i] > 0n,
         }))
         // Sort: priced tokens first (by value desc), then unpriced at bottom
         .sort((a, b) => {
