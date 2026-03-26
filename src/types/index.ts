@@ -4,6 +4,7 @@ export interface ChainConfig {
   symbol: string
   network: string
   nativeTokenAddress: `0x${string}`
+  odosRouterAddress: `0x${string}`
   minimumDustInUSD: number
   referralCode: number
   enabled: boolean

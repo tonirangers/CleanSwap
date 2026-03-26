@@ -31,6 +31,25 @@ export function useCleanSweep() {
   const [activeBatch, setActiveBatch] = useState(0)
   const [totalBatches, setTotalBatches] = useState(0)
 
+  /** Approve a token to a spender, wait for confirmation */
+  const approveToken = useCallback(
+    async (tokenAddress: `0x${string}`, tokenSymbol: string, spender: `0x${string}`) => {
+      if (!walletClient || !publicClient) throw new Error('Wallet not connected')
+      const toastKey = `approve-${tokenAddress}`
+      toast.loading(`Approving ${tokenSymbol}...`, { id: toastKey })
+      const txHash = await walletClient.writeContract({
+        address: tokenAddress,
+        abi: erc20Abi,
+        functionName: 'approve',
+        args: [spender, maxUint256],
+      })
+      toast.loading(`Confirming ${tokenSymbol} approval...`, { id: toastKey })
+      await publicClient.waitForTransactionReceipt({ hash: txHash })
+      toast.success(`Approved ${tokenSymbol}`, { id: toastKey })
+    },
+    [walletClient, publicClient],
+  )
+
   const sweep = useCallback(
     async (batches: SweepBatch[], onSuccess?: () => void) => {
       if (!address || !walletClient || !publicClient || batches.length === 0) return
@@ -53,29 +72,20 @@ export function useCleanSweep() {
           }))
 
           // ──────────────────────────────────────────────
-          // Step 1: Approve all tokens to Permit2
-          // Permit2 is the universal approval target — approve once,
-          // then every swap only needs a gasless EIP-712 signature.
+          // Step 1: Approve tokens to Permit2
           // ──────────────────────────────────────────────
-          const tokensNeedingApproval = batch.tokens.filter((t) => !t.permit2Approved)
+          const tokensNeedingPermit2 = batch.tokens.filter((t) => !t.permit2Approved)
 
-          if (tokensNeedingApproval.length > 0) {
+          if (tokensNeedingPermit2.length > 0) {
             setStatus('approving')
             toast.loading(
-              `Approving ${tokensNeedingApproval.length} token(s)...`,
+              `Approving ${tokensNeedingPermit2.length} token(s) to Permit2...`,
               { id: toastId },
             )
 
-            for (const token of tokensNeedingApproval) {
+            for (const token of tokensNeedingPermit2) {
               try {
-                toast.loading(`Approving ${token.symbol}...`, { id: `approve-${token.address}` })
-                await walletClient.writeContract({
-                  address: token.address,
-                  abi: erc20Abi,
-                  functionName: 'approve',
-                  args: [PERMIT2_ADDRESS as `0x${string}`, maxUint256],
-                })
-                toast.success(`Approved ${token.symbol}`, { id: `approve-${token.address}` })
+                await approveToken(token.address, token.symbol, PERMIT2_ADDRESS as `0x${string}`)
               } catch (err) {
                 toast.dismiss(`approve-${token.address}`)
                 if (isUserRejection(err)) {
@@ -91,8 +101,6 @@ export function useCleanSweep() {
 
           // ──────────────────────────────────────────────
           // Step 2: Get quote from Odos
-          // Now that tokens are approved to Permit2, Odos will
-          // return permit2Message for gasless signing
           // ──────────────────────────────────────────────
           setStatus('sweeping')
           toast.loading(
@@ -118,7 +126,61 @@ export function useCleanSweep() {
             throw err
           }
 
-          console.log('[Sweep] Permit2 available:', !!quote.permit2Message)
+          console.log('[Sweep] Quote response — permit2Message:', !!quote.permit2Message, 'permit2Hash:', !!quote.permit2Hash, 'pathId:', quote.pathId)
+
+          // ──────────────────────────────────────────────
+          // Step 2b: Fallback — if Odos didn't return permit2Message,
+          // approve directly to the Odos router for this chain.
+          // Without this, the assembled tx will try transferFrom
+          // which fails because tokens are only approved to Permit2.
+          // ──────────────────────────────────────────────
+          if (!quote.permit2Message) {
+            console.warn('[Sweep] No permit2Message — falling back to direct router approval')
+            const routerAddress = chainConfig.odosRouterAddress
+            const tokensNeedingRouterApproval = batch.tokens.filter((t) => !t.routerApproved)
+
+            if (tokensNeedingRouterApproval.length > 0) {
+              setStatus('approving')
+              toast.loading(
+                `Permit2 unavailable — approving ${tokensNeedingRouterApproval.length} token(s) to router...`,
+                { id: toastId },
+              )
+
+              for (const token of tokensNeedingRouterApproval) {
+                try {
+                  await approveToken(token.address, token.symbol, routerAddress)
+                } catch (err) {
+                  toast.dismiss(`approve-${token.address}`)
+                  if (isUserRejection(err)) {
+                    toast.error(`Approval cancelled for ${token.symbol}`, { duration: 10000 })
+                    setStatus('idle')
+                    return
+                  }
+                  toast.error(`Failed to approve ${token.symbol}`, { duration: 10000 })
+                  throw err
+                }
+              }
+
+              // Re-quote after router approval so Odos sees the allowance
+              setStatus('sweeping')
+              toast.loading('Re-quoting after approval...', { id: toastId })
+              try {
+                quote = await getOdosQuote({
+                  chainId,
+                  inputTokens,
+                  userAddr: address,
+                  slippageLimitPercent: DEFAULT_SLIPPAGE,
+                  referralCode: chainConfig.referralCode,
+                })
+              } catch (err) {
+                const msg = err instanceof Error ? err.message : 'Unknown error'
+                console.error('[Sweep] Re-quote error:', msg)
+                toast.error(msg.length > 120 ? 'Odos cannot route these tokens' : msg, { id: toastId, duration: 10000 })
+                throw err
+              }
+              console.log('[Sweep] Re-quote — permit2Message:', !!quote.permit2Message)
+            }
+          }
 
           // ──────────────────────────────────────────────
           // Step 3: Sign Permit2 if available (gasless!)
@@ -150,7 +212,7 @@ export function useCleanSweep() {
           }
 
           // ──────────────────────────────────────────────
-          // Step 4: Assemble with simulation + send
+          // Step 4: Assemble + send
           // ──────────────────────────────────────────────
           setStatus('sweeping')
           toast.loading(
@@ -218,7 +280,7 @@ export function useCleanSweep() {
         console.error('Sweep error:', message)
       }
     },
-    [address, chainId, walletClient, publicClient, sendTransactionAsync, status],
+    [address, chainId, walletClient, publicClient, sendTransactionAsync, status, approveToken],
   )
 
   const reset = useCallback(() => {
