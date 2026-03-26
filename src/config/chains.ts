@@ -1,6 +1,7 @@
 import type { ChainConfig } from '@/types'
 
-export const SUPPORTED_CHAINS: readonly number[] = [56, 8453, 1, 42161, 137, 43114, 10, 250, 324, 34443, 59144] as const
+// Fantom (250) and Mode (34443) removed — not supported by Odos
+export const SUPPORTED_CHAINS: readonly number[] = [56, 8453, 1, 42161, 137, 43114, 10, 324, 59144] as const
 
 export const chainConfigs: Record<number, ChainConfig> = {
   1: {
@@ -88,7 +89,7 @@ export const chainConfigs: Record<number, ChainConfig> = {
     nativeTokenAddress: '0x0000000000000000000000000000000000000000',
     minimumDustInUSD: 100,
     referralCode: 3978021280,
-    enabled: true,
+    enabled: false,
     explorerUrl: 'https://ftmscan.com',
   },
   324: {
@@ -110,7 +111,7 @@ export const chainConfigs: Record<number, ChainConfig> = {
     nativeTokenAddress: '0x0000000000000000000000000000000000000000',
     minimumDustInUSD: 100,
     referralCode: 3978021280,
-    enabled: true,
+    enabled: false,
     explorerUrl: 'https://explorer.mode.network',
   },
   59144: {
