@@ -6,10 +6,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ? '/' + (Array.isArray(req.query.path) ? req.query.path.join('/') : req.query.path)
     : ''
 
-  // Preserve original query params (minus our internal 'path' param)
-  const url = new URL(req.url || '/', `https://${req.headers.host}`)
-  url.searchParams.delete('path')
-  const queryString = url.searchParams.toString()
+  // Reconstruct query string from raw URL (preserves brackets, no double-encoding)
+  const rawUrl = req.url || ''
+  const qIndex = rawUrl.indexOf('?')
+  let queryString = ''
+  if (qIndex !== -1) {
+    queryString = rawUrl
+      .slice(qIndex + 1)
+      .split('&')
+      .filter((p) => !p.startsWith('path='))
+      .join('&')
+  }
+
   const targetUrl = `https://api.odos.xyz${subpath}${queryString ? '?' + queryString : ''}`
 
   // CORS
