@@ -74,7 +74,7 @@ export async function fetchWalletTokens(
     return []
   }
 
-  const urlPath = `/wallets/${address}/positions/?filter[chain_ids]=${zerionChain}&currency=usd&filter[position_types]=wallet&sort=value`
+  const urlPath = `/wallets/${address}/positions?filter[chain_ids]=${zerionChain}&currency=usd&filter[position_types]=wallet&sort=value`
   const url = zerionUrl(urlPath)
 
   console.log(`[Zerion] Fetching tokens for ${address} on ${zerionChain}`)
