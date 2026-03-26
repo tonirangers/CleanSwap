@@ -74,7 +74,7 @@ export function useCleanSweep() {
           } catch (err) {
             const msg = err instanceof Error ? err.message : 'Unknown error'
             console.error('[Sweep] Quote error:', msg)
-            toast.error(msg.length > 120 ? 'Odos cannot route these tokens' : msg, { id: toastId })
+            toast.error(msg.length > 120 ? 'Odos cannot route these tokens' : msg, { id: toastId, duration: 10000 })
             throw err
           }
 
@@ -116,11 +116,11 @@ export function useCleanSweep() {
               } catch (err) {
                 toast.dismiss(`approve-${token.address}`)
                 if (isUserRejection(err)) {
-                  toast.error(`Approval cancelled for ${token.symbol}`)
+                  toast.error(`Approval cancelled for ${token.symbol}`, { duration: 10000 })
                   setStatus('idle')
                   return
                 }
-                toast.error(`Failed to approve ${token.symbol}`)
+                toast.error(`Failed to approve ${token.symbol}`, { duration: 10000 })
                 throw err
               }
             }
@@ -146,7 +146,7 @@ export function useCleanSweep() {
             } catch (err) {
               toast.dismiss(toastId)
               if (isUserRejection(err)) {
-                toast.error('Permit2 signature cancelled')
+                toast.error('Permit2 signature cancelled', { duration: 10000 })
                 setStatus('idle')
                 return
               }
@@ -176,14 +176,17 @@ export function useCleanSweep() {
               permit2Signature,
             })
           } catch (err) {
-            toast.error('Failed to assemble transaction', { id: toastId })
+            const msg = err instanceof Error ? err.message : 'Unknown error'
+            console.error('[Sweep] Assemble error:', msg)
+            toast.error(msg.length > 150 ? 'Failed to assemble transaction' : msg, { id: toastId, duration: 10000 })
             throw err
           }
 
           // Check simulation
           if (assembled.simulation && !assembled.simulation.isSuccess) {
             const errorMsg = assembled.simulation.simulationError?.errorMessage ?? 'Simulation failed'
-            toast.error(errorMsg, { id: toastId })
+            console.error('[Sweep] Simulation failed:', errorMsg)
+            toast.error(`Simulation: ${errorMsg.substring(0, 120)}`, { id: toastId, duration: 10000 })
             throw new Error(errorMsg)
           }
 
@@ -208,11 +211,11 @@ export function useCleanSweep() {
           } catch (err) {
             toast.dismiss(toastId)
             if (isUserRejection(err)) {
-              toast.error('Transaction cancelled')
+              toast.error('Transaction cancelled', { duration: 10000 })
               setStatus('idle')
               return
             }
-            toast.error('Transaction failed')
+            toast.error('Transaction failed', { duration: 10000 })
             throw err
           }
         }
