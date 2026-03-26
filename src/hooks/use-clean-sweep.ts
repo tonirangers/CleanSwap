@@ -1,9 +1,9 @@
 import { useState, useCallback } from 'react'
-import { useAccount, useChainId, useWalletClient, useSendTransaction } from 'wagmi'
+import { useAccount, useChainId, useWalletClient, usePublicClient, useSendTransaction } from 'wagmi'
 import { erc20Abi, maxUint256, type Hex } from 'viem'
 import { toast } from 'sonner'
 import { getOdosQuote, assembleOdosTransaction } from '@/api/odos-v3'
-import { PERMIT2_ADDRESS, ODOS_V3_ROUTER, DEFAULT_SLIPPAGE } from '@/config/constants'
+import { PERMIT2_ADDRESS, DEFAULT_SLIPPAGE } from '@/config/constants'
 import { getChainConfig } from '@/config/chains'
 import type { SweepBatch, SweepStatus } from '@/types'
 
@@ -25,6 +25,7 @@ export function useCleanSweep() {
   const { address } = useAccount()
   const chainId = useChainId()
   const { data: walletClient } = useWalletClient()
+  const publicClient = usePublicClient()
   const { sendTransactionAsync } = useSendTransaction()
   const [status, setStatus] = useState<SweepStatus>('idle')
   const [activeBatch, setActiveBatch] = useState(0)
@@ -32,7 +33,7 @@ export function useCleanSweep() {
 
   const sweep = useCallback(
     async (batches: SweepBatch[], onSuccess?: () => void) => {
-      if (!address || !walletClient || batches.length === 0) return
+      if (!address || !walletClient || !publicClient || batches.length === 0) return
 
       const chainConfig = getChainConfig(chainId)
       if (!chainConfig) return
@@ -54,14 +55,14 @@ export function useCleanSweep() {
             { id: toastId },
           )
 
-          // ──────────────────────────────────────────────
-          // Step 1: Get quote from Odos
-          // ──────────────────────────────────────────────
           const inputTokens = batch.tokens.map((t) => ({
             tokenAddress: t.address,
             amount: t.balance.toString(),
           }))
 
+          // ──────────────────────────────────────────────
+          // Step 1: Quote + Assemble to discover router address
+          // ──────────────────────────────────────────────
           let quote
           try {
             quote = await getOdosQuote({
@@ -78,28 +79,59 @@ export function useCleanSweep() {
             throw err
           }
 
-          // ──────────────────────────────────────────────
-          // Step 2: Determine approval target
-          // If Odos returned permit2Message → use Permit2 flow
-          // Otherwise → approve directly to Odos router
-          // ──────────────────────────────────────────────
           const usePermit2 = !!quote.permit2Message
+
+          // Assemble first to get the actual router address for this chain
+          let assembled
+          try {
+            assembled = await assembleOdosTransaction({
+              userAddr: address,
+              pathId: quote.pathId,
+              simulate: false, // Don't simulate yet — might fail if not approved
+            })
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : 'Unknown error'
+            console.error('[Sweep] Assemble error:', msg)
+            toast.error(msg.length > 150 ? 'Failed to assemble transaction' : msg, { id: toastId, duration: 10000 })
+            throw err
+          }
+
+          // The actual router address comes from the assembled transaction
+          const routerAddress = assembled.transaction.to as `0x${string}`
           const approvalTarget = usePermit2
             ? (PERMIT2_ADDRESS as `0x${string}`)
-            : (ODOS_V3_ROUTER as `0x${string}`)
+            : routerAddress
 
-          // Check which tokens need approval to the target
-          const tokensNeedingApproval = batch.tokens.filter((t) => {
-            if (usePermit2) return !t.permit2Approved
-            return !t.routerApproved
-          })
+          console.log(`[Sweep] Router: ${routerAddress}, Permit2: ${usePermit2}, Target: ${approvalTarget}`)
+
+          // ──────────────────────────────────────────────
+          // Step 2: Check & request approvals
+          // ──────────────────────────────────────────────
+          const approvalCalls = batch.tokens.map((t) => ({
+            address: t.address,
+            abi: erc20Abi,
+            functionName: 'allowance' as const,
+            args: [address, approvalTarget] as const,
+          }))
+
+          let allowances: bigint[]
+          try {
+            const results = await publicClient.multicall({ contracts: approvalCalls })
+            allowances = results.map((r) =>
+              r.status === 'success' ? (r.result as bigint) : 0n,
+            )
+          } catch {
+            allowances = batch.tokens.map(() => 0n)
+          }
+
+          const tokensNeedingApproval = batch.tokens.filter((t, idx) =>
+            allowances[idx] < t.balance,
+          )
 
           if (tokensNeedingApproval.length > 0) {
             setStatus('approving')
             toast.loading(
-              usePermit2
-                ? `Approving ${tokensNeedingApproval.length} token(s) for Permit2...`
-                : `Approving ${tokensNeedingApproval.length} token(s) for swap...`,
+              `Approving ${tokensNeedingApproval.length} token(s)...`,
               { id: toastId },
             )
 
@@ -124,10 +156,26 @@ export function useCleanSweep() {
                 throw err
               }
             }
+
+            // Re-quote + re-assemble after approvals (pathId may have expired)
+            toast.loading('Refreshing quote...', { id: toastId })
+            try {
+              quote = await getOdosQuote({
+                chainId,
+                inputTokens,
+                userAddr: address,
+                slippageLimitPercent: DEFAULT_SLIPPAGE,
+                referralCode: chainConfig.referralCode,
+              })
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : 'Unknown error'
+              toast.error(msg.length > 120 ? 'Odos cannot route these tokens' : msg, { id: toastId, duration: 10000 })
+              throw err
+            }
           }
 
           // ──────────────────────────────────────────────
-          // Step 3: Sign Permit2 message if available (gasless!)
+          // Step 3: Sign Permit2 if available (gasless!)
           // ──────────────────────────────────────────────
           let permit2Signature: string | undefined
 
@@ -150,14 +198,13 @@ export function useCleanSweep() {
                 setStatus('idle')
                 return
               }
-              // Permit2 signing failed — fall back to standard flow
               console.warn('[Sweep] Permit2 signing failed, using standard flow:', err)
               permit2Signature = undefined
             }
           }
 
           // ──────────────────────────────────────────────
-          // Step 4: Assemble + send transaction
+          // Step 4: Final assemble with simulation + send
           // ──────────────────────────────────────────────
           setStatus('sweeping')
           toast.loading(
@@ -167,7 +214,6 @@ export function useCleanSweep() {
             { id: toastId },
           )
 
-          let assembled
           try {
             assembled = await assembleOdosTransaction({
               userAddr: address,
@@ -177,7 +223,7 @@ export function useCleanSweep() {
             })
           } catch (err) {
             const msg = err instanceof Error ? err.message : 'Unknown error'
-            console.error('[Sweep] Assemble error:', msg)
+            console.error('[Sweep] Final assemble error:', msg)
             toast.error(msg.length > 150 ? 'Failed to assemble transaction' : msg, { id: toastId, duration: 10000 })
             throw err
           }
@@ -231,7 +277,7 @@ export function useCleanSweep() {
         console.error('Sweep error:', message)
       }
     },
-    [address, chainId, walletClient, sendTransactionAsync, status],
+    [address, chainId, walletClient, publicClient, sendTransactionAsync, status],
   )
 
   const reset = useCallback(() => {
