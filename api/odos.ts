@@ -39,7 +39,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const response = await fetch(targetUrl, fetchOptions)
     const data = await response.text()
 
-    console.log('[Odos Proxy] ←', response.status)
+    console.log('[Odos Proxy] ←', response.status, response.status >= 400 ? data.substring(0, 300) : '')
 
     res.status(response.status)
     res.setHeader('Content-Type', response.headers.get('content-type') || 'application/json')

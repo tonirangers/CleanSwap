@@ -72,7 +72,9 @@ export function useCleanSweep() {
               referralCode: chainConfig.referralCode,
             })
           } catch (err) {
-            toast.error('Failed to get quote from Odos', { id: toastId })
+            const msg = err instanceof Error ? err.message : 'Unknown error'
+            console.error('[Sweep] Quote error:', msg)
+            toast.error(msg.length > 120 ? 'Odos cannot route these tokens' : msg, { id: toastId })
             throw err
           }
 
