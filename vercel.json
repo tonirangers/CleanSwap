@@ -3,8 +3,6 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "rewrites": [
-    { "source": "/api/zerion/:path*", "destination": "/api/zerion?path=:path*" },
-    { "source": "/api/odos/:path*", "destination": "/api/odos?path=:path*" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }

@@ -1,25 +1,14 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Path comes via query parameter from vercel.json rewrite
-  const subpath = req.query.path
-    ? '/' + (Array.isArray(req.query.path) ? req.query.path.join('/') : req.query.path)
-    : ''
+  // Client sends the full Zerion API path as ?url=/wallets/0x.../positions/...
+  const zerionPath = req.query.url
+    ? (Array.isArray(req.query.url) ? req.query.url[0] : req.query.url)
+    : req.query.path
+      ? '/' + (Array.isArray(req.query.path) ? req.query.path.join('/') : req.query.path)
+      : ''
 
-  // Reconstruct query string from raw URL (preserves brackets, no double-encoding)
-  const rawUrl = req.url || ''
-  const qIndex = rawUrl.indexOf('?')
-  let queryString = ''
-  if (qIndex !== -1) {
-    // Remove our internal 'path' param but keep everything else raw
-    queryString = rawUrl
-      .slice(qIndex + 1)
-      .split('&')
-      .filter((p) => !p.startsWith('path='))
-      .join('&')
-  }
-
-  const targetUrl = `https://api.zerion.io/v1${subpath}${queryString ? '?' + queryString : ''}`
+  const targetUrl = `https://api.zerion.io/v1${zerionPath}`
 
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -31,6 +20,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    console.log('[Zerion Proxy] →', targetUrl)
+
     const response = await fetch(targetUrl, {
       method: req.method || 'GET',
       headers: {
@@ -41,6 +32,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     })
 
     const data = await response.text()
+    console.log('[Zerion Proxy] ←', response.status)
+
     res.status(response.status)
     res.setHeader('Content-Type', response.headers.get('content-type') || 'application/json')
     return res.send(data)

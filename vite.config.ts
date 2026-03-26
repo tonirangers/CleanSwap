@@ -13,14 +13,20 @@ export default defineConfig({
   server: {
     proxy: {
       '/api/zerion': {
-        target: 'https://api.zerion.io/v1',
+        target: 'https://api.zerion.io',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/zerion/, ''),
+        rewrite: (reqPath) => {
+          const u = new URL(reqPath, 'http://localhost')
+          return '/v1' + (u.searchParams.get('url') || '')
+        },
       },
       '/api/odos': {
         target: 'https://api.odos.xyz',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/odos/, ''),
+        rewrite: (reqPath) => {
+          const u = new URL(reqPath, 'http://localhost')
+          return u.searchParams.get('url') || ''
+        },
       },
     },
   },

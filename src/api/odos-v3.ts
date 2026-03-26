@@ -1,8 +1,8 @@
 import { NATIVE_TOKEN_ADDRESS, REFERRAL_CODE } from '@/config/constants'
 
-// Always use proxy — Vite dev server and Vercel rewrites handle routing
+// Encode path as query param to avoid Vercel rewrite issues with special chars
 function odosUrl(path: string): string {
-  return `/api/odos${path}`
+  return `/api/odos?url=${encodeURIComponent(path)}`
 }
 
 export interface OdosQuoteRequest {

@@ -55,11 +55,6 @@ const chainIdToZerion: Record<number, string> = {
   59144: 'linea',
 }
 
-// Always use proxy path — Vite dev server and Vercel rewrites both handle it
-function zerionUrl(path: string): string {
-  return `/api/zerion${path}`
-}
-
 export async function fetchWalletTokens(
   address: string,
   chainId: number,
@@ -74,8 +69,9 @@ export async function fetchWalletTokens(
     return []
   }
 
-  const urlPath = `/wallets/${address}/positions?filter[chain_ids]=${zerionChain}&currency=usd&filter[position_types]=wallet&sort=value`
-  const url = zerionUrl(urlPath)
+  // Encode the full Zerion API path as a query param to avoid Vercel rewrite issues
+  const zerionPath = `/wallets/${address}/positions/?filter[chain_ids]=${zerionChain}&currency=usd&filter[position_types]=wallet&sort=value`
+  const url = `/api/zerion?url=${encodeURIComponent(zerionPath)}`
 
   console.log(`[Zerion] Fetching tokens for ${address} on ${zerionChain}`)
 
