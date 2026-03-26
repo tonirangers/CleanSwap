@@ -20,7 +20,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    console.log('[Zerion Proxy] →', targetUrl)
+    const hasAuth = !!req.headers.authorization
+    const authPreview = req.headers.authorization?.substring(0, 20) || 'NONE'
+    console.log('[Zerion Proxy] →', targetUrl, '| auth:', authPreview, '| hasAuth:', hasAuth, '| query.url:', req.query.url || 'EMPTY')
 
     const response = await fetch(targetUrl, {
       method: req.method || 'GET',
