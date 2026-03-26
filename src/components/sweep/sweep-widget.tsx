@@ -27,12 +27,29 @@ export function SweepWidget({ connected }: SweepWidgetProps) {
 
   const [deselected, setDeselected] = useState<Set<string>>(new Set())
 
+  // Auto-deselect $0 value tokens when dust list loads/changes
+  const prevTokensRef = useRef<string>('')
+  useEffect(() => {
+    if (!dustTokens || dustTokens.length === 0) return
+    const sig = dustTokens.map(t => t.address).join(',')
+    if (sig === prevTokensRef.current) return
+    prevTokensRef.current = sig
+    // Deselect tokens with no USD value by default
+    const zeroValueAddrs = dustTokens
+      .filter(t => t.usdValue === 0)
+      .map(t => t.address)
+    if (zeroValueAddrs.length > 0) {
+      setDeselected(new Set(zeroValueAddrs))
+    }
+  }, [dustTokens])
+
   // Reset state on wallet/chain change
   const prevAddress = useRef(address)
   const prevChainId = useRef(chainId)
   useEffect(() => {
     if (prevAddress.current !== address || prevChainId.current !== chainId) {
       setDeselected(new Set())
+      prevTokensRef.current = ''
       prevAddress.current = address
       prevChainId.current = chainId
     }
