@@ -162,10 +162,12 @@ export function useCleanSweep() {
 
           let assembled
           try {
+            // Don't use Odos simulation — their gas estimation can be stale.
+            // Let the wallet (Rabby/MetaMask) handle gas pricing and simulation.
             assembled = await assembleOdosTransaction({
               userAddr: address,
               pathId: quote.pathId,
-              simulate: true,
+              simulate: false,
               permit2Signature,
             })
           } catch (err) {
@@ -173,14 +175,6 @@ export function useCleanSweep() {
             console.error('[Sweep] Assemble error:', msg)
             toast.error(msg.length > 150 ? 'Failed to assemble transaction' : msg, { id: toastId, duration: 10000 })
             throw err
-          }
-
-          // Check simulation
-          if (assembled.simulation && !assembled.simulation.isSuccess) {
-            const errorMsg = assembled.simulation.simulationError?.errorMessage ?? 'Simulation failed'
-            console.error('[Sweep] Simulation failed:', errorMsg)
-            toast.error(`Simulation: ${errorMsg.substring(0, 120)}`, { id: toastId, duration: 10000 })
-            throw new Error(errorMsg)
           }
 
           // Send transaction
