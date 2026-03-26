@@ -10,24 +10,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const targetUrl = `https://api.zerion.io/v1${zerionPath}`
 
+  // API key lives server-side only — never exposed to browser
+  const apiKey = process.env.ZERION_API_KEY || process.env.VITE_ZERION_API_KEY || ''
+  const authHeader = `Basic ${Buffer.from(apiKey + ':').toString('base64')}`
+
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Authorization, Accept, Content-Type')
+  res.setHeader('Access-Control-Allow-Headers', 'Accept, Content-Type')
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end()
   }
 
   try {
-    const hasAuth = !!req.headers.authorization
-    const authPreview = req.headers.authorization?.substring(0, 20) || 'NONE'
-    console.log('[Zerion Proxy] →', targetUrl, '| auth:', authPreview, '| hasAuth:', hasAuth, '| query.url:', req.query.url || 'EMPTY')
+    console.log('[Zerion Proxy] →', targetUrl, '| hasKey:', !!apiKey)
 
     const response = await fetch(targetUrl, {
       method: req.method || 'GET',
       headers: {
-        Authorization: req.headers.authorization || '',
+        Authorization: authHeader,
         Accept: 'application/json',
         'Content-Type': 'application/json',
       },

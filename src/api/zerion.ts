@@ -62,14 +62,7 @@ export async function fetchWalletTokens(
   const zerionChain = chainIdToZerion[chainId]
   if (!zerionChain) return []
 
-  const apiKey = import.meta.env.VITE_ZERION_API_KEY
-
-  if (!apiKey) {
-    console.warn('No Zerion API key configured. Set VITE_ZERION_API_KEY in .env')
-    return []
-  }
-
-  // Encode the full Zerion API path as a query param to avoid Vercel rewrite issues
+  // Auth is handled server-side in the proxy — no API key needed in the client
   const zerionPath = `/wallets/${address}/positions/?filter[chain_ids]=${zerionChain}&currency=usd&filter[position_types]=wallet&sort=value`
   const url = `/api/zerion?url=${encodeURIComponent(zerionPath)}`
 
@@ -77,7 +70,6 @@ export async function fetchWalletTokens(
 
   const response = await fetch(url, {
     headers: {
-      Authorization: `Basic ${btoa(apiKey + ':')}`,
       Accept: 'application/json',
     },
   })
